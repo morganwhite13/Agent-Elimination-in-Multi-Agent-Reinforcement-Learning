@@ -285,6 +285,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-- **Portfolio:** [your-website.com](https://morganwhite13.github.io/)
-- **Email:** morgan13white@icloud.com
-- **LinkedIn:** [Your LinkedIn](https://www.linkedin.com/in/morgan-white-95b245237/)
+- [**Portfolio**](https://morganwhite13.github.io/)
+- [**Email**](morgan13white@icloud.com)
+- [**LinkedIn**](https://www.linkedin.com/in/morgan-white-95b245237/)
