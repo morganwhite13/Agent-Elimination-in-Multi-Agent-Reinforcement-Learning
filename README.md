@@ -27,7 +27,7 @@ This project explores the **Sequential Social Dilemma (SSD)** problem in multi-a
 
 ### Project Highlights
 
-- ✅ Custom Unity ML-Agents environment with 2,000+ lines of C# code
+- ✅ Custom Unity ML-Agents environment (about 1,000 lines of C# across 8 scripts, built on Unity's FoodCollector example)
 - ✅ Configurable elimination thresholds (1-9 agents)
 - ✅ Three RL algorithms tested: PPO, POCA, and SAC
 - ✅ 20+ normalized observation features per agent
@@ -198,15 +198,16 @@ Edit `FoodCollectorArea` in Unity Inspector:
 
 ```
 Scripts/
-├── FoodCollectorAgent.cs       # Agent logic, observations, actions (500+ lines)
-├── FoodCollectorArea.cs        # Environment management (300+ lines)
+├── FoodCollectorAgent.cs       # Agent logic, observations, actions (about 440 lines)
+├── FoodCollectorArea.cs        # Environment management (about 240 lines)
 ├── AgentSettings.cs            # Configurable parameters (ScriptableObject)
 ├── FoodCollectorSettings.cs    # Global environment settings
 └── FoodLogic.cs                # Food item behavior
 
 Config/
 ├── FoodCollectorPPO.yaml       # PPO hyperparameters
-└── FoodCollectorSAC.yaml       # SAC hyperparameters
+├── FoodCollectorPOCA.yaml      # POCA hyperparameters
+└── FoodCollectorSac.yaml       # SAC hyperparameters
 
 Prefabs/
 ├── Agent.prefab                # Agent with elimination mechanics
