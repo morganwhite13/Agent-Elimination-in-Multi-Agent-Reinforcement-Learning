@@ -27,7 +27,7 @@ This project explores the **Sequential Social Dilemma (SSD)** problem in multi-a
 
 ### Project Highlights
 
-- ✅ Custom Unity ML-Agents environment with 2,000+ lines of C# code
+- ✅ Custom Unity ML-Agents environment (about 1,000 lines of C# across 8 scripts, built on Unity's FoodCollector example)
 - ✅ Configurable elimination thresholds (1-9 agents)
 - ✅ Three RL algorithms tested: PPO, POCA, and SAC
 - ✅ 20+ normalized observation features per agent
@@ -37,7 +37,7 @@ This project explores the **Sequential Social Dilemma (SSD)** problem in multi-a
 ## 🔑 Key Features
 
 ### Environment Mechanics
-- **40×40 unit bounded arena** with multiple agents (1-10 configurable)
+- **80×80 unit bounded arena** (`areaRange: 40`, positions drawn from ±40) with multiple agents (1-10 configurable)
 - **Resource dynamics**: Food respawns based on local density, encouraging sustainable harvesting
 - **Elimination system**: Configurable thresholds requiring 1-9 agents to eliminate/freeze a target
 - **Laser weapons**: Agents can eliminate or temporarily freeze other agents
@@ -51,14 +51,17 @@ This project explores the **Sequential Social Dilemma (SSD)** problem in multi-a
 - Other agents' states and positions
 - Hit tracking for strategic elimination decisions
 
-### Default Reward Structure
+### Reward Structure
 ```
-Collect Good Food:     +1.0
-Collect Bad Food:      -1.0
-Fire Laser (miss):     -0.5
-Zap Another Agent:     -5.0
-Get Zapped:            -5.0
+Collect Good Food:     +1.0   (hard-coded)
+Collect Bad Food:      -1.0   (hard-coded)
+Fire Laser (miss):      0     (rewardForFiring is loaded but never applied)
+Zap Another Agent:     rewardForZapping      (AgentSettings default +0.5)
+Get Zapped:            rewardForBeingZapped  (AgentSettings default -0.5)
+Freeze duration:       4 s    (hard-coded as m_FrozenTime + 4f; AgentSettings.frozenTime is unused)
 ```
+
+The zap rewards and the freeze/eliminate thresholds are read at start-up from an `AgentSettings` asset that `Agent.prefab` references but that is not in this repository, so the exact values used in training can't be recovered; the numbers above are the defaults in `AgentSettings.cs`. `Agent.prefab` serializes `agentsToEliminateThreshold: 1` and `permanentlyEliminates: 1`; `permanentlyEliminates` is used as-is, while the threshold is overwritten from the asset in `Initialize()`.
 
 ## ❓ Research Question
 
@@ -106,9 +109,11 @@ This creates natural "tragedy of the commons" scenarios where overharvesting dep
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/marl-elimination.git
-cd marl-elimination
+git clone https://github.com/morganwhite13/Agent-Elimination-in-Multi-Agent-Reinforcement-Learning.git
+cd Agent-Elimination-in-Multi-Agent-Reinforcement-Learning
 ```
+
+> **Note:** the repository contains the scripts, prefabs, scene, models and configs, but not the Unity project structure (`.meta` files, `ProjectSettings/`, `Packages/manifest.json`), so a fresh clone can't be opened directly as a Unity project.
 
 2. **Install Python dependencies**
 ```bash
@@ -132,12 +137,12 @@ pip install numpy matplotlib
 
 **Train with PPO (recommended for efficiency)**
 ```bash
-mlagents-learn config/FoodCollectorPPO.yaml --run-id=ppo_baseline
+mlagents-learn FoodCollectorPPO.yaml --run-id=ppo_baseline
 ```
 
 **Train with SAC (better performance, slower)**
 ```bash
-mlagents-learn config/FoodCollectorSAC.yaml --run-id=sac_experiment
+mlagents-learn FoodCollectorSac.yaml --run-id=sac_experiment
 ```
 
 **Monitor training with TensorBoard**
@@ -175,6 +180,8 @@ Edit `FoodCollectorArea` in Unity Inspector:
 
 **Insight**: Individual elimination performed better than group elimination, contrary to our hypothesis. Agents eliminated early to harvest alone.
 
+With one hit enough to permanently eliminate an agent (the setting serialized in `Agent.prefab`; the missing settings asset may override the threshold) and no cost for firing, eliminating rivals early is close to built into the incentives: a shot costs nothing, and a hit removes a competitor for the rest of the episode. This helps explain the "kill first, harvest alone" finding.
+
 ### Experiment 2: Algorithm Comparison
 
 | Algorithm | Performance | Training Time | Best Use Case |
@@ -185,10 +192,12 @@ Edit `FoodCollectorArea` in Unity Inspector:
 
 **Insight**: SAC's entropy maximization discovered more effective elimination strategies, though at 3× the training cost.
 
+**Caveat**: this comparison isn't like-for-like. Beyond the algorithm, the three configs differ: PPO and POCA run for 500K steps vs. 2M for SAC; SAC uses 1 layer, `normalize: false` and the `simple` encoder vs. 2 layers, `normalize: true` and `nature_cnn` for PPO/POCA; curiosity (strength 0.02) is used for PPO and SAC but not POCA. No seeds are set and each result is a single run. There is also no `SimpleMultiAgentGroup` in the code, so POCA trains without a multi-agent group and behaves close to independent agents.
+
 ### Experiment 3: Freeze vs. Elimination
 
 - **Permanent Elimination**: ~11,500 reward
-- **Temporary Freeze (10s)**: ~10,800 reward
+- **Temporary Freeze (4s)**: ~10,800 reward
 
 **Insight**: Temporary punishment created revenge cycles, while permanent elimination removed problematic agents decisively.
 
@@ -198,15 +207,16 @@ Edit `FoodCollectorArea` in Unity Inspector:
 
 ```
 Scripts/
-├── FoodCollectorAgent.cs       # Agent logic, observations, actions (500+ lines)
-├── FoodCollectorArea.cs        # Environment management (300+ lines)
+├── FoodCollectorAgent.cs       # Agent logic, observations, actions (about 440 lines)
+├── FoodCollectorArea.cs        # Environment management (about 240 lines)
 ├── AgentSettings.cs            # Configurable parameters (ScriptableObject)
 ├── FoodCollectorSettings.cs    # Global environment settings
 └── FoodLogic.cs                # Food item behavior
 
 Config/
 ├── FoodCollectorPPO.yaml       # PPO hyperparameters
-└── FoodCollectorSAC.yaml       # SAC hyperparameters
+├── FoodCollectorPOCA.yaml      # POCA hyperparameters
+└── FoodCollectorSac.yaml       # SAC hyperparameters
 
 Prefabs/
 ├── Agent.prefab                # Agent with elimination mechanics
@@ -231,6 +241,11 @@ void TrackHit(FoodCollectorAgent target, FoodCollectorAgent shooter) {
     }
 }
 ```
+
+**Known Code Issues** (not fixed here; fixing them needs a Unity run to verify)
+- `hitTracker` is `static` and `ClearHitTracker()` is never called, so a shooter can only freeze/eliminate a given target once across the whole run, and the hit-count observation carries over between episodes.
+- Eliminated agents keep collecting observations and requesting decisions.
+- Observations use scene-wide `FindObjectsOfType`, so the order of other-agent slots isn't stable, and observations would mix areas if more than one area were used.
 
 **PPO Hyperparameters**
 ```yaml
@@ -286,5 +301,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📧 Contact
 
 - [**Portfolio**](https://morganwhite13.github.io/)
-- [**Email**](morgan13white@icloud.com)
+- [**Email**](mailto:morgan13white@icloud.com)
 - [**LinkedIn**](https://www.linkedin.com/in/morgan-white-95b245237/)
